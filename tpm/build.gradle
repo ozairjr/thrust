@@ -38,7 +38,7 @@ tasks.withType(com.github.spotbugs.SpotBugsTask) {
 }
 
 jacoco {
-    toolVersion = "0.8.4"
+    toolVersion = "0.8.5"
     reportsDir = file("$buildDir/customJacocoReportDir")
 }
 

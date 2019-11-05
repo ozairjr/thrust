@@ -4,8 +4,13 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 class ThrustThreadControl extends Thread {
+
+	private static final Logger logger = Logger.getLogger(ThrustThreadControl.class.getName());
 
 	/**
 	 * Tempo em minutos em que a thread será removida do pool caso não seja
@@ -19,21 +24,25 @@ class ThrustThreadControl extends Thread {
 
 	private final LocalWorkerThreadPool pool;
 
+	private final AtomicBoolean active;
+
 	public ThrustThreadControl(LocalWorkerThreadPool threadPool) {
 		this.pool = threadPool;
+		this.active = new AtomicBoolean(true);
 	}
 
 	@Override
 	public void run() {
-		while (true) {
+		while (this.active.get()) {
 			try {
 				Thread.sleep(MAX_WAIT_MS);
+				if (pool.getCurrentThreads() > pool.getMinPoolSize()) {
+					searchWorkForRemove();
+				}
 			} catch (InterruptedException e) {
+				this.active.set(false);
 				Thread.currentThread().interrupt();
-				throw new RuntimeException(e);
-			}
-			if (pool.getCurrentThreads() > pool.getMinPoolSize()) {
-				searchWorkForRemove();
+				logger.log(Level.FINEST, "Interrupted", e);
 			}
 		}
 	}
@@ -55,6 +64,10 @@ class ThrustThreadControl extends Thread {
 		if (pool.getCurrentThreads() > pool.getMinPoolSize() && pool.idle.remove(worker)) {
 			pool.removeWorkerThread(worker);
 		}
+	}
+
+	public void inactivate() {
+		this.active.set(false);
 	}
 
 }

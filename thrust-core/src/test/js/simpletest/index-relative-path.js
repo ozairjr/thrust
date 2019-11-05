@@ -19,7 +19,7 @@ if (hasErr) {
     throw new Error('Cannot continue')
 }
 console.log('simple: running script')
-manager.runScript(`${__ROOT_DIR__}/script01.js`)
+manager.runScript(`script01.js`)
 console.log('simple: waiting scripts')
 manager.waitActiveWorkers(1045)
 console.log('simple: continue.', manager.getWorkers().size())

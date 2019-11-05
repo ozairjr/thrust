@@ -7,7 +7,6 @@ import java.util.Iterator;
 import java.util.List;
 
 import br.com.softbox.thrust.api.thread.LocalWorkerThreadPool;
-import br.com.softbox.thrust.api.thread.ThrustWorkerThread;
 
 public class SimpleThrustWorkerManager {
 
@@ -55,6 +54,11 @@ public class SimpleThrustWorkerManager {
 				it.remove();
 			}
 		}
+	}
+	
+	public void shutdown(boolean force) {
+		this.removeNotActives();
+		this.pool.shutdown(force);
 	}
 
 }

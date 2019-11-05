@@ -3,21 +3,24 @@ package br.com.softbox.thrust.api.thread;
 import java.util.Deque;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class LocalWorkerThreadPool {
-	
+
 	private static final Logger logger = Logger.getLogger(LocalWorkerThreadPool.class.getName());
 	protected final Deque<ThrustWorkerThread> idle;
+	private final AtomicBoolean active;
 	private final AtomicInteger currentThreads;
 	private final AtomicLong lastIndex;
 	private final int minPoolSize;
 	private final int maxPoolSize;
 	private final String rootPath;
 	private final ThrustWorkerThreadBuilder workerBuilder;
+	private ThrustThreadControl workerControl;
 
 	public LocalWorkerThreadPool(int minPoolSize, int maxPoolSize, String rootPath,
 			ThrustWorkerThreadBuilder workerBuilder) {
@@ -37,13 +40,15 @@ public class LocalWorkerThreadPool {
 		this.rootPath = rootPath;
 		this.workerBuilder = workerBuilder;
 
+		this.active = new AtomicBoolean(true);
+
 		this.minPoolSize = minPoolSize;
 		this.maxPoolSize = maxPoolSize;
 
 		initThreads();
 		initThreadsControl();
 	}
-	
+
 	public String getRootPath() {
 		return rootPath;
 	}
@@ -56,7 +61,8 @@ public class LocalWorkerThreadPool {
 
 	private void initThreadsControl() {
 		if (minPoolSize != maxPoolSize) {
-			new ThrustThreadControl(this).start();
+			this.workerControl = new ThrustThreadControl(this);
+			this.workerControl.start();
 		}
 	}
 
@@ -93,6 +99,9 @@ public class LocalWorkerThreadPool {
 	}
 
 	public ThrustWorkerThread getThrustWorkerThread() {
+		if (!this.active.get()) {
+			throw new RuntimeException("Pool is not activated");
+		}
 		if (!idle.isEmpty()) {
 			try {
 				return idle.removeFirst();
@@ -111,7 +120,7 @@ public class LocalWorkerThreadPool {
 	}
 
 	public void returnThrustWorkerThread(ThrustWorkerThread worker) {
-		if (worker != null) {
+		if (worker != null && this.active.get()) {
 			worker.updateLastTimeUsed();
 			idle.addFirst(worker);
 		}
@@ -127,5 +136,53 @@ public class LocalWorkerThreadPool {
 
 	public int getMaxPoolSize() {
 		return maxPoolSize;
+	}
+
+	public int getCurrentNumberWorkers() {
+		return this.idle.size();
+	}
+
+	public void shutdown(boolean force) {
+		this.active.set(false);
+		removeCurrentWorkers(force);
+		stopWorkerControl(force);
+	}
+
+	private void stopWorkerControl(boolean force) {
+		if (this.workerControl != null) {
+			try {
+				this.workerControl.inactivate();
+				this.workerControl.interrupt();
+			} catch (Exception e) {
+				String errMsg = "Failed to stop thread worker control";
+				if (!force) {
+					throw new RuntimeException(errMsg, e);
+				} else {
+					logger.log(Level.WARNING, errMsg, e);
+				}
+			} finally {
+				this.workerControl = null;
+			}
+		}
+	}
+
+	private void removeCurrentWorkers(boolean force) {
+		while (!idle.isEmpty()) {
+			ThrustWorkerThread worker = null;
+			try {
+				worker = idle.poll();
+				if (worker != null) {
+					worker.inactivate();
+					worker.interrupt();
+				}
+			} catch (Exception e) {
+				String errMsg = "Failed to stop thread worker " + (worker != null ? worker.getName() : "");
+				if (!force) {
+					throw new RuntimeException(errMsg, e);
+				} else {
+					logger.log(Level.WARNING, errMsg, e);
+				}
+			}
+		}
 	}
 }

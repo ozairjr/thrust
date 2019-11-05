@@ -278,7 +278,7 @@ public class ThrustTest {
 			PrintStream newErrStream = new PrintStream(bosErr, true, CHARSET_UTF8);
 			System.setErr(newErrStream);
 			Thrust.main(new String[] { "./src/test/js/general/no-thread.js" });
-			
+
 			String success = getOutContentAsStr();
 			Assert.assertEquals(success, String.format("Success%n"));
 			String err = bosErr.toString(CHARSET_UTF8);
@@ -316,23 +316,50 @@ public class ThrustTest {
 
 	@Test
 	public void testSimpleWorkerContext() throws Exception {
-		Thrust.main(new String[] { "src/test/js/simpletest"});
-		String str= getOutContentAsStr();
+		Thrust.main(new String[] { "src/test/js/simpletest" });
+		String str = getOutContentAsStr();
 		Assert.assertNotNull(str);
 		Assert.assertTrue(str.contains("main."));
 		Assert.assertTrue(str.contains("confirmed failed"));
 		Assert.assertTrue(str.contains("Already initiated"));
 		Assert.assertTrue(str.contains("waiting scripts"));
-		Assert.assertTrue(str.contains("script01: runnint"));
+		Assert.assertTrue(str.contains("script01: running"));
 		Assert.assertTrue(str.contains("script01: ended"));
 		Assert.assertTrue(str.contains("simple: continue"));
 		Assert.assertTrue(str.contains("A string from other context"));
 	}
 	
 	@Test
+	public void testSimpleWorkerContextRelativePath() throws Exception {
+		Thrust.main(new String[] { "src/test/js/simpletest/index-relative-path.js" });
+		String str = getOutContentAsStr();
+		Assert.assertNotNull(str);
+		Assert.assertTrue(str.contains("main."));
+		Assert.assertTrue(str.contains("confirmed failed"));
+		Assert.assertTrue(str.contains("Already initiated"));
+		Assert.assertTrue(str.contains("waiting scripts"));
+		Assert.assertTrue(str.contains("script01: running"));
+		Assert.assertTrue(str.contains("script01: ended"));
+		Assert.assertTrue(str.contains("simple: continue"));
+		Assert.assertTrue(str.contains("A string from other context"));
+	}
+
+	@Test
+	public void testSimpleWorkerInvalidRequire() throws Exception {
+		Thrust.main(new String[] { "src/test/js/simpletest/invalid-require.js" });
+		String str = getOutContentAsStr();
+		Assert.assertNotNull(str);
+		Assert.assertTrue(str.contains("main."));
+		Assert.assertTrue(str.contains("running script"));
+		Assert.assertTrue(str.contains("Failed to run no-script"));
+		Assert.assertTrue(str.contains("continue"));
+		Assert.assertTrue(str.contains("bye bye"));
+	}
+
+	@Test
 	public void testJavaStringHelper() throws Exception {
-		Thrust.main(new String[] { "src/test/js/general/jstring.js"});
-		String str= getOutContentAsStr();
+		Thrust.main(new String[] { "src/test/js/general/jstring.js" });
+		String str = getOutContentAsStr();
 		Assert.assertNotNull(str);
 		Assert.assertTrue(str.contains("no array"));
 		Assert.assertTrue(str.contains("array length = 3"));
